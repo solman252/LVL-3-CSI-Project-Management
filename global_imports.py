@@ -4,7 +4,7 @@ environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 from pygame import Vector2 as v2, Color, Surface
 
-from typing import Union, Tuple, Sequence, Callable
+from typing import Union, Tuple, Sequence, Callable, Optional
 
 
 from typing_extensions import Protocol as __Protocol # would put in the region, but it wont work for some reason if i do
