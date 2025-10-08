@@ -2,6 +2,9 @@ from global_imports import *
 from constants import *
 from utils import *
 
+from random import choices as random_choice
+from os import path as os_path, mkdir
+
 class core:
     AcceptableImage = Union[Surface,'core.BaseImage',str]
 
@@ -228,7 +231,7 @@ class core:
             if not isinstance(defs,core.TileSetDefinition): raise TypeError(f'`defs` must be of type TileSetDefinition or dict, not {type(defs).__name__}.')
             if isinstance(sheet,str): sheet = f'tilesets/{sheet}'
             #endregion Validate args
-            
+
             super().__init__(sheet)
 
             required_indices = list(defs.standard.values())
@@ -262,7 +265,6 @@ class core:
             if id in self.__variated_tile_ids: # variated tile, so pick random variation
                 vars = range(0,self.__variated_tile_ids[id])
                 weights = [self.__weights[f'{id}_{i}'] for i in vars]
-                from random import choices as random_choice
                 var = random_choice(vars,weights)[0]
                 id = f'{id}_{var}'
             return self.__tiles[id]
@@ -280,11 +282,9 @@ class core:
             if type(folder_name) != str: raise TypeError(f'`folder_name` must be of type str, not {type(folder_name).__name__}.') # validate type
             for c in '/\\:*?"<>|.': folder_name = folder_name.replace(c,'_') # remove illegal file characters
             folder_name = f'./tileset_debug_export/{folder_name}'
-        
-            from os import path, mkdir
 
-            if not path.exists('./tileset_debug_export'): mkdir('./tileset_debug_export') # create base folder if non existant
-            if not path.exists(folder_name): mkdir(folder_name) # create tileset folder if non existant
+            if not os_path.exists('./tileset_debug_export'): mkdir('./tileset_debug_export') # create base folder if non existant
+            if not os_path.exists(folder_name): mkdir(folder_name) # create tileset folder if non existant
 
             with open(f'{folder_name}/weights.txt', 'w') as f:
                 [f.write(f'{k}: {v}\n') for k,v in self.__weights.items()]
@@ -294,7 +294,86 @@ class core:
                     pygame.image.save(img.surface(),f'{folder_name}/{name}.png')
                 else:
                     for i in img.anim_props.frame_indices:
-                        if not os.path.exists(f'{folder_name}/{name}'): mkdir(f'{folder_name}/{name}') # create anim folder if non existant
+                        if not os_path.exists(f'{folder_name}/{name}'): mkdir(f'{folder_name}/{name}') # create anim folder if non existant
                         pygame.image.save(img.surface(i),f'{folder_name}/{name}/{i}.png')
 
-class assets: ...
+class assets:
+    class menu:
+        ICON = core.BaseImage('menu/icon')
+    
+    class tilesets:
+        class definitions:
+            def __STANDARD_rules(tl: bool, t: bool, tr: bool, l: bool, r: bool, bl: bool, b: bool, br: bool):
+                if not l and not t and r and br and b: return 'cotl'
+                if not r and not t and l and bl and b: return 'cotr'
+                if not l and not b and r and tr and t: return 'cobl'
+                if not r and not b and l and tl and t: return 'cobr'
+
+                if not br and b and bl and l and tl and t and tr and r: return 'citl'
+                if not bl and b and br and r and tr and t and tl and l: return 'citr'
+                if not tr and t and tl and l and bl and b and br and r: return 'cibl'
+                if not tl and t and tr and r and br and b and bl and l: return 'cibr'
+
+                if l and not t and r and br and b and bl: return 'et'
+                if l and not b and r and tr and t and tl: return 'eb'
+                if b and not l and t and tr and r and br: return 'el'
+                if b and not r and t and tl and l and bl: return 'er'
+
+                if not l and not t and not r and b: return 'st'
+                if not l and not b and not r and t: return 'sb'
+                if not b and not l and not t and r: return 'sl'
+                if not b and not r and not t and l: return 'sr'
+
+                if l and not tl and t and not tr and r and br and b and bl: return 'set'
+                if l and not bl and b and not br and r and tr and t and tl: return 'seb'
+                if b and not bl and l and not tl and t and tr and r and br: return 'sel'
+                if b and not br and r and not tr and t and tl and l and bl: return 'ser'
+
+                if l and tl and t and not tr and r and not b: return 'ttl'
+                if r and tr and t and not tl and l and not b: return 'ttr'
+                if l and bl and b and not br and r and not t: return 'tbl'
+                if r and br and b and not bl and l and not t: return 'tbr'
+
+                if not l and t and not r and b: return 'dv'
+                if not t and r and not b and l: return 'dh'
+
+                if not tl and t and tr and r and not br and b and bl and l: return 'qcl'
+                if not tr and t and tl and l and not bl and b and br and r: return 'qcr'
+
+                return 'fill'
+            __STANDARD = {
+                'cotl': 0, 'cotr': 1, 'citl': 2, 'citr': 3,
+                'cobl': 4, 'cobr': 5, 'cibl': 6, 'cibr': 7,
+                'et':   8, 'eb':   9, 'el':  10, 'er':  11,
+                'st':  12, 'sb':  13, 'sl':  14, 'sr':  15,
+                'set': 16, 'seb': 17, 'sel': 18, 'ser': 19,
+                'ttl': 20, 'ttr': 21, 'tbl': 22, 'tbr': 23,
+                'dv':  24, 'dh':  25, 'qcl': 26, 'qcr': 27,
+                'fill': {
+                    28: 4, 29: 4, 30: 16,
+                    32: 4, 33: 4, 34: 16,
+                    36: 4, 37: 4, 38: 16,
+                }
+            }
+            STANDARD = core.TileSetDefinition(__STANDARD,__STANDARD_rules)
+
+            __SAND = __STANDARD.copy()
+            __SAND['fill'] = {
+                28: 8, 29: 8, 30: 8, 31: 8,
+                32: 1, 33: 1, 34: 1,
+            }
+            SAND = core.TileSetDefinition(__SAND,__STANDARD_rules)
+
+            __WATER = __STANDARD.copy()
+            for k in __WATER.keys(): __WATER[k] = 0
+            WATER = core.TileSetDefinition(__WATER,__STANDARD_rules)
+
+        FOREST = core.TileSet('forest',(16,16),definitions.STANDARD)
+        GRASS = core.TileSet('grass',(16,16),definitions.STANDARD)
+        SAND = core.TileSet('sand',(16,16),definitions.SAND)
+        WATER = core.TileSet('water',(16,16),definitions.WATER)
+
+        PLAYER = core.TileSet('player',(16,16),{
+            'sd': 0, 'su': 1, 'sl': 2, 'sr': 3,
+            'wd': (30,(4,8)), 'wu': (30,(5,9)), 'wl': (30,(6,10)), 'wr': (30,(7,11)),
+        })
