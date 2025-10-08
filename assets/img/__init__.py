@@ -276,14 +276,17 @@ class core:
 
         def _debug_export(self, folder_name: str):
             '''
-            Export each tile as a .png file under ./tileset_debug_export/`folder_name`/
+            Export each tile as a .png file under ./debug/tileset_export/`folder_name`/
             '''
 
+            #region Validate arg
             if type(folder_name) != str: raise TypeError(f'`folder_name` must be of type str, not {type(folder_name).__name__}.') # validate type
             for c in '/\\:*?"<>|.': folder_name = folder_name.replace(c,'_') # remove illegal file characters
-            folder_name = f'./tileset_debug_export/{folder_name}'
+            folder_name = f'./debug/tileset_export/{folder_name}'
+            #endregion Validate arg
 
-            if not os_path.exists('./tileset_debug_export'): mkdir('./tileset_debug_export') # create base folder if non existant
+            if not os_path.exists('./debug'): mkdir('./debug') # create base folder if non existant
+            if not os_path.exists('./debug/tileset_export'): mkdir('./debug/tileset_export') # create tileset_export folder if non existant
             if not os_path.exists(folder_name): mkdir(folder_name) # create tileset folder if non existant
 
             with open(f'{folder_name}/weights.txt', 'w') as f:
@@ -300,7 +303,7 @@ class core:
 class assets:
     class menu:
         ICON = core.BaseImage('menu/icon')
-    
+
     class tilesets:
         class definitions:
             def __STANDARD_rules(tl: bool, t: bool, tr: bool, l: bool, r: bool, bl: bool, b: bool, br: bool):
@@ -340,7 +343,7 @@ class assets:
                 if not tl and t and tr and r and not br and b and bl and l: return 'qcl'
                 if not tr and t and tl and l and not bl and b and br and r: return 'qcr'
 
-                return 'fill'
+                if tl and t and tr and l and r and bl and b and br: return 'fill'
             __STANDARD = {
                 'cotl': 0, 'cotr': 1, 'citl': 2, 'citr': 3,
                 'cobl': 4, 'cobr': 5, 'cibl': 6, 'cibr': 7,
@@ -357,12 +360,52 @@ class assets:
             }
             STANDARD = core.TileSetDefinition(__STANDARD,__STANDARD_rules)
 
+            def __ALT_rules(tl: bool, t: bool, tr: bool, l: bool, r: bool, bl: bool, b: bool, br: bool):
+                if not l and not t and r and b: return 'cotl'
+                if not r and not t and l and b: return 'cotr'
+                if not l and not b and r and t: return 'cobl'
+                if not r and not b and l and t: return 'cobr'
+
+                if not br and b and bl and l and tl and t and tr and r: return 'citl'
+                if not bl and b and br and r and tr and t and tl and l: return 'citr'
+                if not tr and t and tl and l and bl and b and br and r: return 'cibl'
+                if not tl and t and tr and r and br and b and bl and l: return 'cibr'
+
+                if l and not t and r and br and b and bl: return 'et'
+                if l and not b and r and tr and t and tl: return 'eb'
+                if b and not l and t and tr and r and br: return 'el'
+                if b and not r and t and tl and l and bl: return 'er'
+
+                if not tl and t and tr and r and not br and b and bl and l: return 'qcl'
+                if not tr and t and tl and l and not bl and b and br and r: return 'qcr'
+
+                if tl and t and tr and l and r and bl and b and br: return 'fill'
+            __ALT = {
+                'cotl': 0, 'cotr': 1, 'citl': 2, 'citr': 3,  'et': 4,  'er':  5,  'qcl': 6,
+                'cobl': 7, 'cobr': 8, 'cibl': 9, 'cibr': 10, 'eb': 11, 'el':  12, 'qcr': 13,
+                'fill': {
+                    14: 1, 15: 1,
+                    16: 1, 17: 1,
+                    18: 1, 19: 1,
+                    20: 12,
+                }
+            }
+            ALT = core.TileSetDefinition(__ALT,__ALT_rules)
+
             __SAND = __STANDARD.copy()
             __SAND['fill'] = {
                 28: 8, 29: 8, 30: 8, 31: 8,
                 32: 1, 33: 1, 34: 1,
             }
             SAND = core.TileSetDefinition(__SAND,__STANDARD_rules)
+
+            __SAND_ALT = __ALT.copy()
+            __SAND_ALT['fill'] = {
+                14: 8, 15: 8,
+                16: 8, 17: 8,
+                18: 1, 19: 1, 20: 1,
+            }
+            SAND_ALT = core.TileSetDefinition(__SAND_ALT,__ALT_rules)
 
             __WATER = __STANDARD.copy()
             for k in __WATER.keys(): __WATER[k] = 0
@@ -372,6 +415,10 @@ class assets:
         GRASS = core.TileSet('grass',(16,16),definitions.STANDARD)
         SAND = core.TileSet('sand',(16,16),definitions.SAND)
         WATER = core.TileSet('water',(16,16),definitions.WATER)
+
+        FOREST_ALT = core.TileSet('forest_alt',(16,16),definitions.ALT)
+        GRASS_ALT = core.TileSet('grass_alt',(16,16),definitions.ALT)
+        SAND_ALT = core.TileSet('sand_alt',(16,16),definitions.SAND_ALT)
 
         PLAYER = core.TileSet('player',(16,16),{
             'sd': 0, 'su': 1, 'sl': 2, 'sr': 3,

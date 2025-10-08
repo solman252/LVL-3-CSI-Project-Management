@@ -3,6 +3,8 @@ __all__ = [
 
     'DEBUG_TIME_ROUNDING',
 
+    'MAX_SEED',
+
     'RENDER_SIZE',
     'WINDOW_SCALE',
     'WINDOW_TITLE',
@@ -16,6 +18,8 @@ from global_imports import *
 def display_ratio(value: int, relative_screen_size: int = 128*6) -> int: return round((value / relative_screen_size) * (RENDER_SIZE[0] * WINDOW_SCALE))
 
 DEBUG_TIME_ROUNDING = 4
+
+MAX_SEED = 1000000
 
 RENDER_SIZE = (144,144) # Should be square
 WINDOW_SCALE = 6

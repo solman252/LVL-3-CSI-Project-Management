@@ -11,7 +11,9 @@ pygame.display.set_caption(WINDOW_TITLE)
 #endregion Pygame Inits
 
 #region Non-Main
+import assets
 from utils import *
+import map
 #endregion Non-Main
 
 #endregion Imports
@@ -22,6 +24,18 @@ debug('Starting game setup:',mode='header')
 running = True
 screen = Surface(RENDER_SIZE)
 
+#region Generate Terrain
+debug('Generating terrain:',mode='header')
+
+terrain: map.Terrain = map.Terrain(size=(128,128),seed=environ.get('debug_seed'))
+terrain._debug_export()
+
+debug('Terrain generation complete after %Ts.',mode='closer')
+#endregion Generate Terrain
+
+if 'debug_close_after_setup' in environ:
+    debug('Game setup complete after %Ts.',mode='closer_eof')
+    exit()
 debug('Game setup complete after %Ts.',mode='closer')
 #endregion Game Setup
 
