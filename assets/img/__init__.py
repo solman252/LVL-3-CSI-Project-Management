@@ -340,8 +340,8 @@ class assets:
                 if not l and t and not r and b: return 'dv'
                 if not t and r and not b and l: return 'dh'
 
-                if not tl and t and tr and r and not br and b and bl and l: return 'qcl'
-                if not tr and t and tl and l and not bl and b and br and r: return 'qcr'
+                if not tl and t and tr and r and not br and b and bl and l: return 'dcl'
+                if not tr and t and tl and l and not bl and b and br and r: return 'dcr'
 
                 if tl and t and tr and l and r and bl and b and br: return 'fill'
             __STANDARD = {
@@ -351,7 +351,7 @@ class assets:
                 'st':  12, 'sb':  13, 'sl':  14, 'sr':  15,
                 'set': 16, 'seb': 17, 'sel': 18, 'ser': 19,
                 'ttl': 20, 'ttr': 21, 'tbl': 22, 'tbr': 23,
-                'dv':  24, 'dh':  25, 'qcl': 26, 'qcr': 27,
+                'dv':  24, 'dh':  25, 'dcl': 26, 'dcr': 27,
                 'fill': {
                     28: 4, 29: 4, 30: 16,
                     32: 4, 33: 4, 34: 16,
@@ -376,13 +376,35 @@ class assets:
                 if b and not l and t and tr and r and br: return 'el'
                 if b and not r and t and tl and l and bl: return 'er'
 
-                if not tl and t and tr and r and not br and b and bl and l: return 'qcl'
-                if not tr and t and tl and l and not bl and b and br and r: return 'qcr'
+                if not tl and t and tr and r and not br and b and bl and l: return 'dcl'
+                if not tr and t and tl and l and not bl and b and br and r: return 'dcr'
 
                 if tl and t and tr and l and r and bl and b and br: return 'fill'
+            
+            def __ALT_rules_dual(tl: bool, tr: bool, bl: bool, br: bool):
+                if not tl and not tr and not bl and br: return 'cotl'
+                if not tr and not tl and not br and bl: return 'cotr'
+                if not bl and not br and not tl and tr: return 'cobl'
+                if not br and not bl and not tr and tl: return 'cobr'
+
+                if tl and tr and bl and not br: return 'citl'
+                if tr and tl and br and not bl: return 'citr'
+                if bl and br and tl and not tr: return 'cibl'
+                if br and bl and tr and not tl: return 'cibr'
+                
+                if not tl and not tr and bl and br: return 'et'
+                if not bl and not br and tl and tr: return 'eb'
+                if not tl and tr and not bl and br: return 'el'
+                if not tr and tl and not br and bl: return 'er'
+
+                if not tl and tr and bl and not br: return 'dcl'
+                if not tr and tl and br and not bl: return 'dcr'
+
+                if tl and tr and bl and br: return 'fill'
+
             __ALT = {
-                'cotl': 0, 'cotr': 1, 'citl': 2, 'citr': 3,  'et': 4,  'er':  5,  'qcl': 6,
-                'cobl': 7, 'cobr': 8, 'cibl': 9, 'cibr': 10, 'eb': 11, 'el':  12, 'qcr': 13,
+                'cotl': 0, 'cotr': 1, 'citl': 2, 'citr': 3,  'et': 4,  'er':  5,  'dcl': 6,
+                'cobl': 7, 'cobr': 8, 'cibl': 9, 'cibr': 10, 'eb': 11, 'el':  12, 'dcr': 13,
                 'fill': {
                     14: 1, 15: 1,
                     16: 1, 17: 1,
@@ -391,6 +413,7 @@ class assets:
                 }
             }
             ALT = core.TileSetDefinition(__ALT,__ALT_rules)
+            ALT_dual = core.TileSetDefinition(__ALT,__ALT_rules_dual)
 
             __SAND = __STANDARD.copy()
             __SAND['fill'] = {
@@ -407,6 +430,18 @@ class assets:
             }
             SAND_ALT = core.TileSetDefinition(__SAND_ALT,__ALT_rules)
 
+            __WATER_ALT = {
+                'cotl': 0, 'cotr': 1, 'citl': 2,  'citr': 3,  'et': 4,  'er':  5,  'dcl': 6, 'fill': 7,
+                'cobl': 8, 'cobr': 9, 'cibl': 10, 'cibr': 11, 'eb': 12, 'el':  13, 'dcr': 14, # no 15
+            }
+
+            for tile_id,base_index in __WATER_ALT.items():
+                __WATER_ALT[tile_id] = []
+                for i in range(4):
+                    __WATER_ALT[tile_id].append(base_index + 16*i)
+                __WATER_ALT[tile_id] = (12,tuple(__WATER_ALT[tile_id]))
+            WATER_ALT = core.TileSetDefinition(__WATER_ALT,__ALT_rules_dual)
+
             __WATER = __STANDARD.copy()
             for k in __WATER.keys(): __WATER[k] = 0
             WATER = core.TileSetDefinition(__WATER,__STANDARD_rules)
@@ -419,6 +454,9 @@ class assets:
         FOREST_ALT = core.TileSet('forest_alt',(16,16),definitions.ALT)
         GRASS_ALT = core.TileSet('grass_alt',(16,16),definitions.ALT)
         SAND_ALT = core.TileSet('sand_alt',(16,16),definitions.SAND_ALT)
+
+        WATER_ALT_DUAL = core.TileSet('water_alt_dual',(16,16),definitions.WATER_ALT)
+        FOREST_ALT_DUAL = core.TileSet('forest_alt_dual',(16,16),definitions.ALT_dual)
 
         PLAYER = core.TileSet('player',(16,16),{
             'sd': 0, 'su': 1, 'sl': 2, 'sr': 3,

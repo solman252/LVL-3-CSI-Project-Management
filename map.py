@@ -142,16 +142,17 @@ class Terrain:
 
         #region Biome definitions
         self.biomes = (
-            (assets.img.tilesets.WATER,      0, '#9BD4C3'),
-            (assets.img.tilesets.SAND_ALT,   1, '#E8CFA6'),
-            (assets.img.tilesets.GRASS_ALT,  2, '#C0D470'),
-            (assets.img.tilesets.FOREST_ALT, 3, '#8DB15D'),
+            (assets.img.tilesets.WATER_ALT_DUAL,      0, '#9BD4C3'),
+            # (assets.img.tilesets.SAND_ALT,   1, '#E8CFA6'),
+            # (assets.img.tilesets.GRASS_ALT,  2, '#C0D470'),
+            (assets.img.tilesets.FOREST_ALT_DUAL, 3, '#8DB15D'),
         )
         self.quant_biomes = (
-            0,
-            1,1,
-            2,2,2,2,
-            3,3,3,0,0,
+            # 0,
+            # 1,1,
+            # 2,2,2,2,
+            # 3,3,3,0,0,
+            0,1,0,1,0,1,0,1
         )
         #endregion Biome definitions
 
@@ -193,12 +194,12 @@ class Terrain:
             self.biome_data = np.array(self.quant_biomes)[self.biome_data] # convert to biome ids from self.quant_biomes
             debug('Done after %Ts.',mode='closer')
         else:
-            debug('Loading base biome IDs from ./debug/terrain_export/biome_data_unchanged.png...',end = '  ',mode='header')
-            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/biome_data_unchanged.png'),[b[2] for b in self.biomes])
+            debug('Loading base biome IDs from ./debug/terrain_export/4_biome_data_unchanged.png...',end = '  ',mode='header')
+            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/4_biome_data_unchanged.png'),[b[2] for b in self.biomes])
         #endregion Assign biome ids
 
         if 'debug_enable_custom_map' in environ:
-            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/biome_data_unchanged.png'),[b[2] for b in self.biomes])
+            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/4_biome_data_unchanged.png'),[b[2] for b in self.biomes])
 
         self.biome_data_unchanged = self.biome_data.copy()
 
@@ -307,42 +308,46 @@ class Terrain:
 
         #region Calculate tiles
         debug('Calculating tiles...',end = '  ',mode='header')
-        self.tile_data = np.full(self.size,0,int)
-        self.tile_data_under = np.full(self.size,0,int)
+        self.tile_data = np.full((*self.size,4),-1,int)
 
         for x,y in iter_ranges(*self.size):
             biome_id: int = self.biome_data[x][y]
+            under: int = -1
+
             tileset, z, _ = self.biomes[biome_id]
 
             neighbors = []
-            connections = [True]*8
-            i = -1
-            for dx,dy in iter_ranges((-1,2),(-1,2)):
-                if dx == 0 and dy == 0: continue
-                i += 1
+            connections = []
+            for dx,dy in iter_ranges(2,2):
                 if not (0 <= x+dx < self.size[0] and 0 <= y+dy < self.size[1]):
                     n_id = 0
                 else:
                     n_id = self.biome_data[x+dx][y+dy]
-                n_z = self.biomes[n_id][1]
-                neighbors.append(n_id)
-                if n_id != biome_id and n_z <= z: connections[i] = False
-
-            tile: str = tileset.rules(*connections)
-
-            if tile is None or tile == '':
-                self.tile_data_under[x][y] = -1
-                self.tile_data[x][y] = -1
-                continue
+                n_tileset, n_z, _ = self.biomes[n_id]
+                neighbors.append((n_id,n_z,n_tileset))
+                connections.append(n_id == biome_id)
             
-            under: int = -1 if tile == 'fill' else [n_id for n_id in neighbors if not n_id == biome_id][0]
-            if under is None: under = -1
+            i = -1
+            for dx,dy in iter_ranges(2,2):
+                i += 1
+                (n_id,n_z,n_tileset) = neighbors[i]
+
+                if n_id != biome_id:
+                    if n_z > z:
+                        biome_id = n_id
+                        under = self.biome_data[x][y]
+                        connections = [not c for c in connections]
+                    else:
+                        under = n_id
             
-            # try:
-            self.tile_data_under[x][y] = under
-            # except:
-            #     debug(y,under)
-            self.tile_data[x][y] = tileset.tile_ids.index(tile)
+            self.tile_data[x][y][0] = biome_id
+            self.tile_data[x][y][1] = tileset.tile_ids.index(tileset.rules(*connections))
+            
+            self.tile_data[x][y][2] = under
+            if under != -1:
+                u_tileset = self.biomes[under][0]
+                self.tile_data[x][y][3] = u_tileset.tile_ids.index(u_tileset.rules(*[not c for c in connections]))
+
 
         debug('Done after %Ts.',mode='closer')
         #endregion Calculate tiles
@@ -369,20 +374,20 @@ class Terrain:
 
             bg = Surface((self.size[0]*16,self.size[1]*16),pygame.SRCALPHA)
             for x,y in iter_ranges(*self.size):
-                tile_id: int = self.tile_data[x][y]
+                biome_id:   int = self.tile_data[x][y][0]
+                tile_id:    int = self.tile_data[x][y][1]
+                under: int = self.tile_data[x][y][2]
+                u_tile_id:  int = self.tile_data[x][y][3]
 
                 if tile_id == -1: continue
 
-                biome_id: int = self.biome_data[x][y]
-                tileset, *_ = self.biomes[biome_id]
+                tileset = self.biomes[biome_id][0]
                 tile_id = tileset.tile_ids[tile_id]
-                under: int = self.tile_data_under[x][y]
+                u_tileset = self.biomes[under][0]
+                u_tile_id = u_tileset.tile_ids[u_tile_id]
 
-                if under != -1:
-                    u_tileset = self.biomes[under][0]
-                    bg.blit(u_tileset.tile('fill').surf(),(x*16,y*16))
-                
-                bg.blit(tileset.tile(tile_id).surf(),(x*16,y*16))
+                if under != -1: bg.blit(u_tileset.tile(u_tile_id).surf(0),(x*16,y*16))
+                bg.blit(tileset.tile(tile_id).surf(0),(x*16,y*16))
 
             pygame.image.save(bg,'./debug/terrain_export/6_bg.png')
 
