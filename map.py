@@ -79,14 +79,14 @@ def gen_island_vignette(noise_map: np.ndarray) -> np.ndarray:
         dist = rounded_square_sdf(dx, dy)
 
         # Sample inverted noise for bump modulation
-        nval = 1 - np.rot90(noise_map,2)[x % w, y % h]
+        nval = 1 - np.rot90(noise_map,2)[x % w][y % h]
         bump_dist = dist - amplitude * (nval - 0.5)
 
         # White center, black edges with smooth fade
         t = bump_dist / falloff
         brightness = np.clip(1 - t, 0, 1)
 
-        arr[y, x] = brightness
+        arr[x][y] = brightness
 
     return arr
 
@@ -94,7 +94,7 @@ class Terrain:
     '''
     Generates / stores terrain data such as seed, biomes, and tiles.
     '''
-    def __init__(self, size: Coordinate, seed: Optional[float|int|str] = None, detail_layers: int = 2, base_octaves: int = 3, octave_multiplier: int = 4):
+    def __init__(self, size: Coordinate, seed: Optional[float|int|str] = None, detail_layers: int = 3, base_octaves: int = 4, octave_multiplier: int = 2):
         #region Validate args
         #region Validate size
         if not is_coordinate(size): raise TypeError(f'`size` ({repr(size)}) must be a valid Coordinate object.') # TypeError
@@ -142,17 +142,17 @@ class Terrain:
 
         #region Biome definitions
         self.biomes = (
-            (assets.img.tilesets.WATER_ALT_DUAL,      0, '#9BD4C3'),
-            # (assets.img.tilesets.SAND_ALT,   1, '#E8CFA6'),
-            # (assets.img.tilesets.GRASS_ALT,  2, '#C0D470'),
-            (assets.img.tilesets.FOREST_ALT_DUAL, 3, '#8DB15D'),
+            (assets.img.tilesets.WATER_ALT,  0, '#9BD4C3'),
+            (assets.img.tilesets.SAND_ALT,   1, '#E8CFA6'),
+            (assets.img.tilesets.GRASS_ALT,  2, '#C0D470'),
+            (assets.img.tilesets.FOREST_ALT, 3, '#8DB15D'),
         )
         self.quant_biomes = (
-            # 0,
-            # 1,1,
-            # 2,2,2,2,
-            # 3,3,3,0,0,
-            0,1,0,1,0,1,0,1
+            0,
+            1,1,
+            2,2,2,2,
+            3,3,3,0,0,
+            # 0,1,0,1,2,3,2,1,0
         )
         #endregion Biome definitions
 
@@ -195,159 +195,150 @@ class Terrain:
             debug('Done after %Ts.',mode='closer')
         else:
             debug('Loading base biome IDs from ./debug/terrain_export/4_biome_data_unchanged.png...',end = '  ',mode='header')
-            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/4_biome_data_unchanged.png'),[b[2] for b in self.biomes])
+            biome_colours = [b[2] for b in self.biomes]
+            biome_colours.append('#000000')
+            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/4_biome_data_unchanged.png'),biome_colours)
+        self.biome_data_unchanged = self.biome_data.copy()
         #endregion Assign biome ids
 
-        if 'debug_enable_custom_map' in environ:
-            self.biome_data = np_utils.from_surf.indexed(pygame.image.load('./debug/terrain_export/4_biome_data_unchanged.png'),[b[2] for b in self.biomes])
+        # #region Adjust biome ids
+        # # TODO: clean
+        # if 'debug_enable_custom_map' not in environ:
+        #     debug('Adjusting biome IDs...',mode='header')
 
-        self.biome_data_unchanged = self.biome_data.copy()
+        #     self.old_biome_data = None
+        #     i = 0
+        #     while not np.array_equal(self.old_biome_data,self.biome_data):
+        #         self.old_biome_data = self.biome_data.copy()
+        #         i+= 1
+        #         if i == 2: debug('Repeating as nessesary...',end = '  ',mode='header')
+        #         #region Remove Small Pockets
+        #         if i == 1: debug('Removing tiny biomes...',end = '  ',mode='header')
 
-        #region Adjust biome ids
-        # TODO: clean
-        if 'debug_enable_custom_map' not in environ:
-            debug('Adjusting biome IDs...',mode='header')
-
-            self.old_biome_data = None
-            i = 0
-            while not np.array_equal(self.old_biome_data,self.biome_data):
-                self.old_biome_data = self.biome_data.copy()
-                i+= 1
-                if i == 2: debug('Repeating as nessesary...',end = '  ',mode='header')
-                #region Remove Small Pockets
-                if i == 1: debug('Removing tiny biomes...',end = '  ',mode='header')
-
-                for biome_id in np.unique(self.biome_data):
-                    labeled, num_features = scnp.label(self.biome_data == biome_id)
-                    for region_id in range(1, num_features + 1):
-                        region_mask = labeled == region_id
-                        if np.sum(region_mask) < (14/128)*(sum(self.size)/2):
-                            # Replace small region with the most common *neighboring biome*
-                            # Find border pixels of the region
-                            border = np.logical_and(
-                                np.logical_not(region_mask),
-                                np.logical_or.reduce([
-                                    np.roll(region_mask, 1, 0),
-                                    np.roll(region_mask, -1, 0),
-                                    np.roll(region_mask, 1, 1),
-                                    np.roll(region_mask, -1, 1)
-                                ])
-                            )
-                            if np.any(border):
-                                neighbor_values = self.biome_data[border]
-                                self.biome_data[region_mask] = np.bincount(neighbor_values).argmax()
+        #         for biome_id in np.unique(self.biome_data):
+        #             labeled, num_features = scnp.label(self.biome_data == biome_id)
+        #             for region_id in range(1, num_features + 1):
+        #                 region_mask = labeled == region_id
+        #                 if np.sum(region_mask) < (14/128)*(sum(self.size)/2):
+        #                     # Replace small region with the most common *neighboring biome*
+        #                     # Find border pixels of the region
+        #                     border = np.logical_and(
+        #                         np.logical_not(region_mask),
+        #                         np.logical_or.reduce([
+        #                             np.roll(region_mask, 1, 0),
+        #                             np.roll(region_mask, -1, 0),
+        #                             np.roll(region_mask, 1, 1),
+        #                             np.roll(region_mask, -1, 1)
+        #                         ])
+        #                     )
+        #                     if np.any(border):
+        #                         neighbor_values = self.biome_data[border]
+        #                         self.biome_data[region_mask] = np.bincount(neighbor_values).argmax()
                             
-                if i == 1: debug('Done after %Ts.',mode='closer')
-                #endregion Remove Small Pockets
+        #         if i == 1: debug('Done after %Ts.',mode='closer')
+        #         #endregion Remove Small Pockets
 
-                #region Remove Pokey Bits
-                if i == 1: debug('Removing pokey bits...',end = '  ',mode='header')
+        #         #region Remove Pokey Bits
+        #         if i == 1: debug('Removing pokey bits...',end = '  ',mode='header')
 
-                shifts = [(-1,0),(1,0),(0,-1),(0,1)]
-                for x,y in iter_ranges(*self.size):
-                    biome = self.biome_data[x][y]
-                    same_neighbors = 0
-                    neighbor_values = []
-                    for dy, dx in shifts:
-                        ny, nx = y + dy, x + dx
-                        if 0 <= ny < self.size[1] and 0 <= nx < self.size[0]:
-                            neighbor_values.append(self.biome_data[nx][ny])
-                            if self.biome_data[nx][ny] == biome:
-                                same_neighbors += 1
-                    # If isolated or nearly isolated, replace
-                    if same_neighbors <= 1:
-                        if neighbor_values:
-                            replacement = np.bincount(neighbor_values).argmax()
-                            self.biome_data[x][y] = replacement
+        #         shifts = [(-1,0),(1,0),(0,-1),(0,1)]
+        #         for x,y in iter_ranges(*self.size):
+        #             biome = self.biome_data[x][y]
+        #             same_neighbors = 0
+        #             neighbor_values = []
+        #             for dy, dx in shifts:
+        #                 ny, nx = y + dy, x + dx
+        #                 if 0 <= ny < self.size[1] and 0 <= nx < self.size[0]:
+        #                     neighbor_values.append(self.biome_data[nx][ny])
+        #                     if self.biome_data[nx][ny] == biome:
+        #                         same_neighbors += 1
+        #             # If isolated or nearly isolated, replace
+        #             if same_neighbors <= 1:
+        #                 if neighbor_values:
+        #                     replacement = np.bincount(neighbor_values).argmax()
+        #                     self.biome_data[x][y] = replacement
                             
-                if i == 1: debug('Done after %Ts.',mode='closer')
-                #endregion Remove Pokey Bits
+        #         if i == 1: debug('Done after %Ts.',mode='closer')
+        #         #endregion Remove Pokey Bits
 
-                #region Remove Thin Bits
-                if i == 1: debug('Removing thin bits...',end = '  ',mode='header')
+        #         #region Remove Thin Bits
+        #         if i == 1: debug('Removing thin bits...',end = '  ',mode='header')
 
-                shifts = [(-1,0),(1,0),(0,-1),(0,1)]  # up, down, left, right
-                opposites = [(0,1),(1,0)]  # indices of neighbor pairs: vertical, horizontal
-                changes = []
+        #         shifts = [(-1,0),(1,0),(0,-1),(0,1)]  # up, down, left, right
+        #         opposites = [(0,1),(1,0)]  # indices of neighbor pairs: vertical, horizontal
+        #         changes = []
 
-                for x, y in iter_ranges(*self.size):
-                    biome = self.biome_data[x][y]
+        #         for x, y in iter_ranges(*self.size):
+        #             biome = self.biome_data[x][y]
 
-                    neighbors = [
-                        self.biome_data[x-1][y] if x-1 >= 0 else -1,  # left
-                        self.biome_data[x+1][y] if x+1 < self.size[0] else -1,  # right
-                        self.biome_data[x][y-1] if y-1 >= 0 else -1,  # up
-                        self.biome_data[x][y+1] if y+1 < self.size[1] else -1   # down
-                    ]
-                    # same-id flags
-                    same = [1 if n == biome else 0 for n in neighbors]
+        #             neighbors = [
+        #                 self.biome_data[x-1][y] if x-1 >= 0 else -1,  # left
+        #                 self.biome_data[x+1][y] if x+1 < self.size[0] else -1,  # right
+        #                 self.biome_data[x][y-1] if y-1 >= 0 else -1,  # up
+        #                 self.biome_data[x][y+1] if y+1 < self.size[1] else -1   # down
+        #             ]
+        #             # same-id flags
+        #             same = [1 if n == biome else 0 for n in neighbors]
 
-                    # Check opposite pairs
-                    vertical = same[2] and same[3]   # up & down
-                    horizontal = same[0] and same[1] # left & right
+        #             # Check opposite pairs
+        #             vertical = same[2] and same[3]   # up & down
+        #             horizontal = same[0] and same[1] # left & right
 
-                    # If neither vertical nor horizontal line, remove it
-                    if (vertical or horizontal):
-                        # Replace with most common neighbor
-                        valid_neighbors = [n for n in neighbors if n >= 0]
-                        if valid_neighbors:
-                            replacement = np.bincount(valid_neighbors).argmax()
-                            changes.append((x,y,replacement))
-                for (x,y,replacement) in changes:
-                    self.biome_data[x][y] = replacement
+        #             # If neither vertical nor horizontal line, remove it
+        #             if (vertical or horizontal):
+        #                 # Replace with most common neighbor
+        #                 valid_neighbors = [n for n in neighbors if n >= 0]
+        #                 if valid_neighbors:
+        #                     replacement = np.bincount(valid_neighbors).argmax()
+        #                     changes.append((x,y,replacement))
+        #         for (x,y,replacement) in changes:
+        #             self.biome_data[x][y] = replacement
                             
-                if i == 1: debug('Done after %Ts.',mode='closer')
-                #endregion Remove Thin Bits
-            if i >= 2: debug('Done after %Ts.',mode='closer')
+        #         if i == 1: debug('Done after %Ts.',mode='closer')
+        #         #endregion Remove Thin Bits
+        #     if i >= 2: debug('Done after %Ts.',mode='closer')
 
-            debug('Biome ID adjustment complete after %Ts.',mode='closer')
-        #endregion Adjust biome ids
+        #     debug('Biome ID adjustment complete after %Ts.',mode='closer')
+        # #endregion Adjust biome ids
 
         debug('Biome data generated after %Ts.',mode='closer')
         #endregion Biomes
 
         #region Calculate tiles
         debug('Calculating tiles...',end = '  ',mode='header')
-        self.tile_data = np.full((*self.size,4),-1,int)
+        self.tile_data = np.full((*self.size,8),-1,int)
 
         for x,y in iter_ranges(*self.size):
-            biome_id: int = self.biome_data[x][y]
-            under: int = -1
-
-            tileset, z, _ = self.biomes[biome_id]
-
-            neighbors = []
-            connections = []
-            for dx,dy in iter_ranges(2,2):
+            _neighbors = {}
+            for dx,dy in iter_ranges((-1,1),(-1,1)):
                 if not (0 <= x+dx < self.size[0] and 0 <= y+dy < self.size[1]):
                     n_id = 0
                 else:
                     n_id = self.biome_data[x+dx][y+dy]
-                n_tileset, n_z, _ = self.biomes[n_id]
-                neighbors.append((n_id,n_z,n_tileset))
-                connections.append(n_id == biome_id)
-            
-            i = -1
-            for dx,dy in iter_ranges(2,2):
-                i += 1
-                (n_id,n_z,n_tileset) = neighbors[i]
+                    if not (0 <= n_id < len(self.biomes)):
+                        n_id = 0
+                n_z = self.biomes[n_id][1]
+                _neighbors[n_z] = n_id
 
-                if n_id != biome_id:
-                    if n_z > z:
-                        biome_id = n_id
-                        under = self.biome_data[x][y]
-                        connections = [not c for c in connections]
-                    else:
-                        under = n_id
-            
-            self.tile_data[x][y][0] = biome_id
-            self.tile_data[x][y][1] = tileset.tile_ids.index(tileset.rules(*connections))
-            
-            self.tile_data[x][y][2] = under
-            if under != -1:
-                u_tileset = self.biomes[under][0]
-                self.tile_data[x][y][3] = u_tileset.tile_ids.index(u_tileset.rules(*[not c for c in connections]))
+            neighbors = [i for z, i in sorted(_neighbors.items())]
 
+            for i,biome_id in enumerate(neighbors):
+                if not (0 <= biome_id < len(self.biomes)): biome_id = 0
+                tileset, z, _ = self.biomes[biome_id]
+
+                if i == len(neighbors)-1 or biome_id == 0:
+                    connections = []
+                    for dx,dy in iter_ranges((-1,1),(-1,1)):
+                        if not (0 <= x+dx < self.size[0] and 0 <= y+dy < self.size[1]):
+                            n_id = 0
+                        else:
+                            n_id = self.biome_data[x+dx][y+dy]
+                        connections.append(n_id == biome_id)
+                else:
+                    connections = [True]*4
+
+                self.tile_data[x][y][i*2] = biome_id
+                self.tile_data[x][y][i*2+1] = tileset.tile_ids.index(tileset.rules(*connections))
 
         debug('Done after %Ts.',mode='closer')
         #endregion Calculate tiles
@@ -364,6 +355,7 @@ class Terrain:
             if not os_path.exists('./debug/terrain_export'): mkdir('./debug/terrain_export') # create terrain_export folder if non existant
 
             biome_colours = [b[2] for b in self.biomes]
+            biome_colours.append('#000000')
 
             pygame.image.save(np_utils.to_surf.grayscale(self.raw_perlin),'./debug/terrain_export/0_raw_perlin.png')
             pygame.image.save(np_utils.to_surf.grayscale(self.island_vignette),'./debug/terrain_export/1_island_vignette.png')
@@ -373,20 +365,15 @@ class Terrain:
             pygame.image.save(np_utils.to_surf.indexed(self.biome_data,biome_colours),'./debug/terrain_export/5_biome_data.png')
 
             bg = Surface((self.size[0]*16,self.size[1]*16),pygame.SRCALPHA)
-            for x,y in iter_ranges(*self.size):
-                biome_id:   int = self.tile_data[x][y][0]
-                tile_id:    int = self.tile_data[x][y][1]
-                under: int = self.tile_data[x][y][2]
-                u_tile_id:  int = self.tile_data[x][y][3]
+            for l,x,y in iter_ranges(4,*self.size):
+                biome_id:   int = self.tile_data[x][y][l*2]
+                tile_id:    int = self.tile_data[x][y][l*2+1]
 
                 if tile_id == -1: continue
 
                 tileset = self.biomes[biome_id][0]
                 tile_id = tileset.tile_ids[tile_id]
-                u_tileset = self.biomes[under][0]
-                u_tile_id = u_tileset.tile_ids[u_tile_id]
 
-                if under != -1: bg.blit(u_tileset.tile(u_tile_id).surf(0),(x*16,y*16))
                 bg.blit(tileset.tile(tile_id).surf(0),(x*16,y*16))
 
             pygame.image.save(bg,'./debug/terrain_export/6_bg.png')

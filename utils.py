@@ -56,7 +56,7 @@ def debug(*values: object, sep: str|None = ' ', end: str|None = '\n', mode: str|
                 raise ValueError(mode)
 #endregion printing
 
-def iter_ranges(*dims: Union[int,tuple[int,int]]):
+def iter_ranges(*dims: Union[int,tuple[int,Optional[int],Optional[int]]]):
     '''
     Generator for shortening nested for loops.
 

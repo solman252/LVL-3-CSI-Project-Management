@@ -360,28 +360,7 @@ class assets:
             }
             STANDARD = core.TileSetDefinition(__STANDARD,__STANDARD_rules)
 
-            def __ALT_rules(tl: bool, t: bool, tr: bool, l: bool, r: bool, bl: bool, b: bool, br: bool):
-                if not l and not t and r and b: return 'cotl'
-                if not r and not t and l and b: return 'cotr'
-                if not l and not b and r and t: return 'cobl'
-                if not r and not b and l and t: return 'cobr'
-
-                if not br and b and bl and l and tl and t and tr and r: return 'citl'
-                if not bl and b and br and r and tr and t and tl and l: return 'citr'
-                if not tr and t and tl and l and bl and b and br and r: return 'cibl'
-                if not tl and t and tr and r and br and b and bl and l: return 'cibr'
-
-                if l and not t and r and br and b and bl: return 'et'
-                if l and not b and r and tr and t and tl: return 'eb'
-                if b and not l and t and tr and r and br: return 'el'
-                if b and not r and t and tl and l and bl: return 'er'
-
-                if not tl and t and tr and r and not br and b and bl and l: return 'dcl'
-                if not tr and t and tl and l and not bl and b and br and r: return 'dcr'
-
-                if tl and t and tr and l and r and bl and b and br: return 'fill'
-            
-            def __ALT_rules_dual(tl: bool, tr: bool, bl: bool, br: bool):
+            def __ALT_rules(tl: bool, tr: bool, bl: bool, br: bool):
                 if not tl and not tr and not bl and br: return 'cotl'
                 if not tr and not tl and not br and bl: return 'cotr'
                 if not bl and not br and not tl and tr: return 'cobl'
@@ -401,7 +380,6 @@ class assets:
                 if not tr and tl and br and not bl: return 'dcr'
 
                 if tl and tr and bl and br: return 'fill'
-
             __ALT = {
                 'cotl': 0, 'cotr': 1, 'citl': 2, 'citr': 3,  'et': 4,  'er':  5,  'dcl': 6,
                 'cobl': 7, 'cobr': 8, 'cibl': 9, 'cibr': 10, 'eb': 11, 'el':  12, 'dcr': 13,
@@ -413,7 +391,6 @@ class assets:
                 }
             }
             ALT = core.TileSetDefinition(__ALT,__ALT_rules)
-            ALT_dual = core.TileSetDefinition(__ALT,__ALT_rules_dual)
 
             __SAND = __STANDARD.copy()
             __SAND['fill'] = {
@@ -430,6 +407,10 @@ class assets:
             }
             SAND_ALT = core.TileSetDefinition(__SAND_ALT,__ALT_rules)
 
+            __WATER = __STANDARD.copy()
+            for k in __WATER.keys(): __WATER[k] = 0
+            WATER = core.TileSetDefinition(__WATER,__STANDARD_rules)
+
             __WATER_ALT = {
                 'cotl': 0, 'cotr': 1, 'citl': 2,  'citr': 3,  'et': 4,  'er':  5,  'dcl': 6, 'fill': 7,
                 'cobl': 8, 'cobr': 9, 'cibl': 10, 'cibr': 11, 'eb': 12, 'el':  13, 'dcr': 14, # no 15
@@ -440,11 +421,7 @@ class assets:
                 for i in range(4):
                     __WATER_ALT[tile_id].append(base_index + 16*i)
                 __WATER_ALT[tile_id] = (12,tuple(__WATER_ALT[tile_id]))
-            WATER_ALT = core.TileSetDefinition(__WATER_ALT,__ALT_rules_dual)
-
-            __WATER = __STANDARD.copy()
-            for k in __WATER.keys(): __WATER[k] = 0
-            WATER = core.TileSetDefinition(__WATER,__STANDARD_rules)
+            WATER_ALT = core.TileSetDefinition(__WATER_ALT,__ALT_rules)
 
         FOREST = core.TileSet('forest',(16,16),definitions.STANDARD)
         GRASS = core.TileSet('grass',(16,16),definitions.STANDARD)
@@ -454,9 +431,7 @@ class assets:
         FOREST_ALT = core.TileSet('forest_alt',(16,16),definitions.ALT)
         GRASS_ALT = core.TileSet('grass_alt',(16,16),definitions.ALT)
         SAND_ALT = core.TileSet('sand_alt',(16,16),definitions.SAND_ALT)
-
-        WATER_ALT_DUAL = core.TileSet('water_alt_dual',(16,16),definitions.WATER_ALT)
-        FOREST_ALT_DUAL = core.TileSet('forest_alt_dual',(16,16),definitions.ALT_dual)
+        WATER_ALT = core.TileSet('water_alt',(16,16),definitions.WATER_ALT)
 
         PLAYER = core.TileSet('player',(16,16),{
             'sd': 0, 'su': 1, 'sl': 2, 'sr': 3,
